@@ -68,9 +68,54 @@ class Product extends Model
         return 'S/ ' . number_format($this->price, 2);
     }
 
-    // Scope for active products only
+    // Scopes
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeInStock($query)
+    {
+        return $query->where('stock', '>', 0);
+    }
+
+    public function scopeAvailable($query)
+    {
+        return $query->active()->inStock();
+    }
+
+    public function scopeSearch($query, $term)
+    {
+        return $query->where(function ($q) use ($term) {
+            $q->where('name', 'like', "%{$term}%")
+              ->orWhere('description', 'like', "%{$term}%");
+        });
+    }
+
+    public function scopeInCategory($query, $categoryId)
+    {
+        return $query->where('category_id', $categoryId);
+    }
+
+    public function scopePriceRange($query, $min = null, $max = null)
+    {
+        if ($min !== null) {
+            $query->where('price', '>=', $min);
+        }
+        if ($max !== null) {
+            $query->where('price', '<=', $max);
+        }
+        return $query;
+    }
+
+    public function scopeByVendor($query, $userId)
+    {
+        return $query->where('user_id', $userId);
+    }
+
+    public function scopeWithRatings($query)
+    {
+        return $query->withAvg('reviews', 'rating')
+                     ->withCount('reviews');
     }
 }
