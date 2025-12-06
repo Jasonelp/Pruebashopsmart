@@ -39,4 +39,10 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    // ✨ CONFIGURACIÓN DE OPENROUTER
+    'openrouter' => [
+        'api_key' => env('OPENROUTER_API_KEY'),
+        'model' => env('AI_MODEL', 'google/gemini-2.0-flash-exp:free'),
+    ],
+
 ];

@@ -7,19 +7,14 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ReviewController;
-use App\Http\Controllers\Api\AIController;
 use App\Http\Controllers\Api\ChatbotController;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
-|
-| Rutas API RESTful con versionado y rate limiting
-|
 */
 
-// Ruta de información del usuario autenticado
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
@@ -38,11 +33,9 @@ Route::prefix('v1')->middleware('throttle:60,1')->group(function () {
     Route::get('/categories/{id}', [CategoryController::class, 'show']);
     Route::get('/categories/{id}/products', [CategoryController::class, 'products']);
 
-    // IA endpoints públicos (rate limit más restrictivo)
-    Route::middleware('throttle:20,1')->group(function () {
-        Route::post('/ai/chat', [AIController::class, 'chat']);
-        Route::get('/ai/product/{id}', [AIController::class, 'productAnalysis']);
-        Route::post('/ai/vision', [AIController::class, 'vision']);
+    // ✨ IA ENDPOINTS PÚBLICOS (rate limit restrictivo)
+    Route::prefix('ai')->middleware('throttle:20,1')->group(function () {
+        Route::get('/product/{id}', [ChatbotController::class, 'productAnalysis']);
     });
 });
 
@@ -75,9 +68,9 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:100,1'])->group(funct
         Route::delete('/{id}', [ReviewController::class, 'destroy']);
     });
 
-    // Chatbot IA
-    Route::prefix('chat')->group(function () {
-        Route::post('/', [ChatbotController::class, 'chat']);
+    // ✨ CHATBOT IA - REQUIERE AUTENTICACIÓN
+    Route::prefix('ai')->group(function () {
+        Route::post('/chat', [ChatbotController::class, 'chat']);
         Route::get('/conversations', [ChatbotController::class, 'conversations']);
         Route::get('/conversations/{conversationId}', [ChatbotController::class, 'history']);
     });
@@ -94,6 +87,8 @@ Route::prefix('v1/vendor')->middleware(['auth:sanctum', 'vendor', 'throttle:100,
         Route::get('/{id}', [ProductController::class, 'vendorShow']);
         Route::put('/{id}', [ProductController::class, 'update']);
         Route::delete('/{id}', [ProductController::class, 'destroy']);
+        Route::post('/{id}/image', [ProductController::class, 'uploadImage']);
+        Route::delete('/{id}/image', [ProductController::class, 'deleteImage']);
     });
 
     Route::prefix('orders')->group(function () {
@@ -107,18 +102,13 @@ Route::prefix('v1/vendor')->middleware(['auth:sanctum', 'vendor', 'throttle:100,
 // ====================================
 Route::prefix('v1/admin')->middleware(['auth:sanctum', 'admin', 'throttle:150,1'])->group(function () {
 
-    // Productos (control total)
     Route::apiResource('products', ProductController::class);
-
-    // Categorías (control total)
     Route::apiResource('categories', CategoryController::class);
 
-    // Órdenes (todas)
     Route::get('/orders', [OrderController::class, 'adminIndex']);
     Route::get('/orders/{id}', [OrderController::class, 'adminShow']);
     Route::patch('/orders/{id}/status', [OrderController::class, 'updateStatus']);
 
-    // Usuarios
     Route::prefix('users')->group(function () {
         Route::get('/', [\App\Http\Controllers\Api\UserController::class, 'index']);
         Route::get('/{id}', [\App\Http\Controllers\Api\UserController::class, 'show']);
@@ -127,7 +117,6 @@ Route::prefix('v1/admin')->middleware(['auth:sanctum', 'admin', 'throttle:150,1'
         Route::post('/{id}/unsuspend', [\App\Http\Controllers\Api\UserController::class, 'unsuspend']);
     });
 
-    // Analytics
     Route::get('/analytics', [\App\Http\Controllers\Api\AnalyticsController::class, 'index']);
     Route::get('/analytics/sales', [\App\Http\Controllers\Api\AnalyticsController::class, 'sales']);
     Route::get('/analytics/products', [\App\Http\Controllers\Api\AnalyticsController::class, 'products']);

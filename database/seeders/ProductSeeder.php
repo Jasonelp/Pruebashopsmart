@@ -8,6 +8,21 @@ use App\Models\Product;
 
 class ProductSeeder extends Seeder
 {
+    private function getPlaceholderImage(int $categoryId, int $index): string
+    {
+        $colors = [
+            1 => '3498db', // Smartphones - azul
+            2 => '2ecc71', // Computadoras - verde
+            3 => 'e74c3c', // Cámaras - rojo
+            4 => '9b59b6', // Relojes - morado
+            5 => 'f39c12', // Auriculares - naranja
+            6 => '1abc9c', // Tablets - turquesa
+        ];
+
+        $color = $colors[$categoryId] ?? '95a5a6';
+        return "https://placehold.co/600x600/{$color}/ffffff?text=Product+{$index}";
+    }
+
     public function run()
     {
         $products = [
@@ -19,7 +34,6 @@ class ProductSeeder extends Seeder
                 'stock' => 25,
                 'category_id' => 1,
                 'user_id' => 2,
-                'image' => null
             ],
             [
                 'name' => 'Samsung Galaxy S24 Ultra - 512GB',
@@ -28,7 +42,6 @@ class ProductSeeder extends Seeder
                 'stock' => 18,
                 'category_id' => 1,
                 'user_id' => 2,
-                'image' => null
             ],
             [
                 'name' => 'Xiaomi Redmi Note 13 Pro - 256GB',
@@ -37,7 +50,6 @@ class ProductSeeder extends Seeder
                 'stock' => 45,
                 'category_id' => 1,
                 'user_id' => 5,
-                'image' => null
             ],
             [
                 'name' => 'Google Pixel 8 Pro - 128GB',
@@ -46,7 +58,6 @@ class ProductSeeder extends Seeder
                 'stock' => 30,
                 'category_id' => 1,
                 'user_id' => 2,
-                'image' => null
             ],
 
             // Computadoras
@@ -57,7 +68,6 @@ class ProductSeeder extends Seeder
                 'stock' => 12,
                 'category_id' => 2,
                 'user_id' => 2,
-                'image' => null
             ],
             [
                 'name' => 'Dell XPS 15 - Intel i9',
@@ -66,7 +76,6 @@ class ProductSeeder extends Seeder
                 'stock' => 15,
                 'category_id' => 2,
                 'user_id' => 5,
-                'image' => null
             ],
             [
                 'name' => 'Lenovo ThinkPad X1 Carbon',
@@ -75,7 +84,6 @@ class ProductSeeder extends Seeder
                 'stock' => 20,
                 'category_id' => 2,
                 'user_id' => 5,
-                'image' => null
             ],
             [
                 'name' => 'ASUS ROG Zephyrus G14',
@@ -84,7 +92,6 @@ class ProductSeeder extends Seeder
                 'stock' => 10,
                 'category_id' => 2,
                 'user_id' => 2,
-                'image' => null
             ],
 
             // Cámaras
@@ -95,7 +102,6 @@ class ProductSeeder extends Seeder
                 'stock' => 8,
                 'category_id' => 3,
                 'user_id' => 2,
-                'image' => null
             ],
             [
                 'name' => 'Sony Alpha A7 IV',
@@ -104,7 +110,6 @@ class ProductSeeder extends Seeder
                 'stock' => 10,
                 'category_id' => 3,
                 'user_id' => 5,
-                'image' => null
             ],
             [
                 'name' => 'Nikon Z8',
@@ -113,7 +118,6 @@ class ProductSeeder extends Seeder
                 'stock' => 5,
                 'category_id' => 3,
                 'user_id' => 2,
-                'image' => null
             ],
 
             // Relojes
@@ -124,7 +128,6 @@ class ProductSeeder extends Seeder
                 'stock' => 35,
                 'category_id' => 4,
                 'user_id' => 2,
-                'image' => null
             ],
             [
                 'name' => 'Samsung Galaxy Watch 6 Classic',
@@ -133,7 +136,6 @@ class ProductSeeder extends Seeder
                 'stock' => 28,
                 'category_id' => 4,
                 'user_id' => 5,
-                'image' => null
             ],
             [
                 'name' => 'Garmin Fenix 7X',
@@ -142,7 +144,6 @@ class ProductSeeder extends Seeder
                 'stock' => 15,
                 'category_id' => 4,
                 'user_id' => 2,
-                'image' => null
             ],
 
             // Auriculares
@@ -153,7 +154,6 @@ class ProductSeeder extends Seeder
                 'stock' => 50,
                 'category_id' => 5,
                 'user_id' => 2,
-                'image' => null
             ],
             [
                 'name' => 'Sony WH-1000XM5',
@@ -162,7 +162,6 @@ class ProductSeeder extends Seeder
                 'stock' => 30,
                 'category_id' => 5,
                 'user_id' => 5,
-                'image' => null
             ],
             [
                 'name' => 'Bose QuietComfort Ultra',
@@ -171,7 +170,6 @@ class ProductSeeder extends Seeder
                 'stock' => 25,
                 'category_id' => 5,
                 'user_id' => 2,
-                'image' => null
             ],
 
             // Tablets
@@ -182,7 +180,6 @@ class ProductSeeder extends Seeder
                 'stock' => 15,
                 'category_id' => 6,
                 'user_id' => 2,
-                'image' => null
             ],
             [
                 'name' => 'Samsung Galaxy Tab S9 Ultra',
@@ -191,7 +188,6 @@ class ProductSeeder extends Seeder
                 'stock' => 12,
                 'category_id' => 6,
                 'user_id' => 5,
-                'image' => null
             ],
             [
                 'name' => 'Microsoft Surface Pro 9',
@@ -200,11 +196,11 @@ class ProductSeeder extends Seeder
                 'stock' => 18,
                 'category_id' => 6,
                 'user_id' => 2,
-                'image' => null
             ],
         ];
 
-        foreach ($products as $product) {
+        foreach ($products as $index => $product) {
+            $product['image'] = $this->getPlaceholderImage($product['category_id'], $index + 1);
             Product::create($product);
         }
     }

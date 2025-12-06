@@ -5,12 +5,20 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use App\Services\ImageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
+    private ImageService $imageService;
+
+    public function __construct(ImageService $imageService)
+    {
+        $this->imageService = $imageService;
+    }
+
     /**
      * Lista pública de productos con filtros y paginación
      */
@@ -156,12 +164,20 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0.01',
             'stock' => 'required|integer|min:0',
             'category_id' => 'required|exists:categories,id',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'specifications' => 'nullable|array',
         ]);
 
         if ($request->hasFile('image')) {
-            $validated['image'] = $request->file('image')->store('products', 'public');
+            try {
+                $imagePaths = $this->imageService->uploadProductImage($request->file('image'));
+                $validated['image'] = $imagePaths['image'];
+            } catch (\InvalidArgumentException $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
         }
 
         $validated['user_id'] = $request->user()->id;
@@ -170,7 +186,7 @@ class ProductController extends Controller
         $product = Product::create($validated);
 
         // Limpiar cache de productos
-        Cache::tags(['products'])->flush();
+        $this->clearProductsCache();
 
         return response()->json([
             'success' => true,
@@ -194,21 +210,29 @@ class ProductController extends Controller
             'price' => 'sometimes|required|numeric|min:0.01',
             'stock' => 'sometimes|required|integer|min:0',
             'category_id' => 'sometimes|required|exists:categories,id',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'specifications' => 'nullable|array',
         ]);
 
         if ($request->hasFile('image')) {
-            if ($product->image && \Storage::disk('public')->exists($product->image)) {
-                \Storage::disk('public')->delete($product->image);
+            try {
+                $imagePaths = $this->imageService->uploadProductImage(
+                    $request->file('image'),
+                    $product->image
+                );
+                $validated['image'] = $imagePaths['image'];
+            } catch (\InvalidArgumentException $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
             }
-            $validated['image'] = $request->file('image')->store('products', 'public');
         }
 
         $product->update($validated);
 
         // Limpiar cache de productos
-        Cache::tags(['products'])->flush();
+        $this->clearProductsCache();
 
         return response()->json([
             'success' => true,
@@ -233,18 +257,94 @@ class ProductController extends Controller
             ], 422);
         }
 
-        if ($product->image && \Storage::disk('public')->exists($product->image)) {
-            \Storage::disk('public')->delete($product->image);
+        if ($product->image) {
+            $this->imageService->deleteProductImage($product->image);
         }
 
         $product->delete();
 
         // Limpiar cache de productos
-        Cache::tags(['products'])->flush();
+        $this->clearProductsCache();
 
         return response()->json([
             'success' => true,
             'message' => 'Producto eliminado exitosamente',
         ]);
+    }
+
+    /**
+     * Sube o actualiza la imagen de un producto
+     */
+    public function uploadImage(Request $request, int $id): JsonResponse
+    {
+        $product = Product::query()
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ]);
+
+        try {
+            $imagePaths = $this->imageService->uploadProductImage(
+                $request->file('image'),
+                $product->image
+            );
+
+            $product->update(['image' => $imagePaths['image']]);
+
+            $this->clearProductsCache();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Imagen subida exitosamente',
+                'data' => [
+                    'image' => $this->imageService->getImageUrl($imagePaths['image']),
+                    'thumbnail' => $this->imageService->getThumbnailUrl($imagePaths['image']),
+                ],
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Elimina la imagen de un producto
+     */
+    public function deleteImage(Request $request, int $id): JsonResponse
+    {
+        $product = Product::query()
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        if (!$product->image) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El producto no tiene imagen',
+            ], 404);
+        }
+
+        $this->imageService->deleteProductImage($product->image);
+        $product->update(['image' => null]);
+
+        $this->clearProductsCache();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Imagen eliminada exitosamente',
+        ]);
+    }
+
+    private function clearProductsCache(): void
+    {
+        try {
+            Cache::tags(['products'])->flush();
+        } catch (\Exception $e) {
+            // Si el driver de cache no soporta tags, limpiar todo el cache
+            Cache::flush();
+        }
     }
 }

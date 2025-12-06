@@ -14,8 +14,7 @@ class AiService
     public function __construct()
     {
         $this->apiKey = config('services.openrouter.api_key', env('OPENROUTER_API_KEY', ''));
-        $this->model = config('services.openrouter.model', env('AI_MODEL', 'openai/gpt-3.5-turbo'));
-    }
+        $this->model = config('services.openrouter.model', env('AI_MODEL', 'meta-llama/llama-3.2-3b-instruct:free'));    }
 
     public function chat(array $messages, bool $includeProducts = true): string
     {
@@ -32,7 +31,7 @@ class AiService
             ];
         }
 
-        $response = Http::withHeaders([
+        $response = Http::withoutVerifying()->withHeaders([
             'Authorization' => 'Bearer ' . $this->apiKey,
             'Content-Type' => 'application/json',
             'HTTP-Referer' => config('app.url', 'http://localhost'),
@@ -45,6 +44,10 @@ class AiService
         ]);
 
         if ($response->failed()) {
+            \Log::error('OpenRouter API Error', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
             throw new \Exception('Error al comunicarse con OpenRouter: ' . $response->body());
         }
 
@@ -63,7 +66,7 @@ class AiService
         if ($includeProducts) {
             $products = $this->getAvailableProducts();
             if ($products->isNotEmpty()) {
-                $prompt .= "\n\nProductos disponibles en la tienda:\n";
+                $prompt .= "\n\n📦 Productos disponibles en la tienda:\n";
                 foreach ($products as $product) {
                     $prompt .= sprintf(
                         "- %s (ID: %d): %s - Precio: S/ %.2f - Stock: %d unidades - Categoría: %s\n",
@@ -91,4 +94,55 @@ class AiService
             ->limit(50)
             ->get();
     }
+
+    public function analyzeProduct(Product $product): string
+    {
+        $productInfo = sprintf(
+            "Producto: %s\nDescripción: %s\nPrecio: S/ %.2f\nStock: %d unidades\nCategoría: %s",
+            $product->name,
+            $product->description ?? 'Sin descripción',
+            $product->price,
+            $product->stock,
+            $product->category->name ?? 'Sin categoría'
+        );
+
+        $systemPrompt = "Eres un experto en análisis de productos para ShopSmart IA. "
+            . "Genera un análisis detallado y útil del producto que incluya: "
+            . "1) Puntos destacados del producto, "
+            . "2) Para quién es ideal este producto, "
+            . "3) Relación calidad-precio, "
+            . "4) Recomendaciones de uso. "
+            . "Sé conciso pero informativo. Responde siempre en español.";
+
+        $messages = [
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user', 'content' => "Analiza este producto:\n\n" . $productInfo],
+        ];
+
+        $response = Http::withoutVerifying()->withHeaders([
+            'Authorization' => 'Bearer ' . $this->apiKey,
+            'Content-Type' => 'application/json',
+            'HTTP-Referer' => config('app.url', 'http://localhost'),
+            'X-Title' => 'ShopSmart IA',
+        ])->post($this->baseUrl . '/chat/completions', [
+            'model' => $this->model,
+            'messages' => $messages,
+            'max_tokens' => 800,
+            'temperature' => 0.7,
+        ]);
+
+        if ($response->failed()) {
+            \Log::error('OpenRouter API Error - Product Analysis', [
+                'product_id' => $product->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            throw new \Exception('Error al analizar el producto: ' . $response->body());
+        }
+
+        $data = $response->json();
+
+        return $data['choices'][0]['message']['content'] ?? 'No se pudo generar el análisis.';
+    }
 }
+

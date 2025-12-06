@@ -68,6 +68,36 @@ class Product extends Model
         return 'S/ ' . number_format($this->price, 2);
     }
 
+    public function getImageUrlAttribute(): ?string
+    {
+        if (!$this->image) {
+            return null;
+        }
+
+        // Si es una URL externa (placeholder), retornarla directamente
+        if (str_starts_with($this->image, 'http')) {
+            return $this->image;
+        }
+
+        return asset('storage/' . $this->image);
+    }
+
+    public function getThumbnailUrlAttribute(): ?string
+    {
+        if (!$this->image) {
+            return null;
+        }
+
+        // Si es una URL externa (placeholder), retornarla directamente
+        if (str_starts_with($this->image, 'http')) {
+            return $this->image;
+        }
+
+        $directory = dirname($this->image);
+        $filename = basename($this->image);
+        return asset('storage/' . $directory . '/thumbnails/' . $filename);
+    }
+
     // Scopes
     public function scopeActive($query)
     {

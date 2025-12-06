@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\ChatbotMessage;
+use App\Models\Product;
 use App\Services\AiService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -129,5 +130,39 @@ class ChatbotController extends Controller
             'success' => true,
             'data' => $conversations,
         ]);
+    }
+
+    public function productAnalysis(int $id): JsonResponse
+    {
+        $product = Product::with('category')->find($id);
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Producto no encontrado.',
+            ], 404);
+        }
+
+        try {
+            $analysis = $this->aiService->analyzeProduct($product);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'product' => [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'price' => $product->price,
+                        'category' => $product->category->name ?? null,
+                    ],
+                    'analysis' => $analysis,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al analizar el producto: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }
