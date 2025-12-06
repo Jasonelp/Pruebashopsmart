@@ -242,6 +242,119 @@ Análisis de imagen con IA
 }
 ```
 
+### 🤖 Chatbot IA con Memoria (Autenticado)
+
+El chatbot con memoria permite mantener conversaciones persistentes, donde la IA recuerda el contexto de mensajes anteriores y puede recomendar productos reales de la tienda.
+
+#### POST `/api/v1/chat`
+Enviar mensaje al chatbot
+
+**Headers:**
+```
+Authorization: Bearer {token}
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+  "message": "¿Qué productos me recomiendas para gaming?",
+  "conversation_id": null
+}
+```
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| message | string | Sí | Mensaje del usuario (máx 2000 caracteres) |
+| conversation_id | integer | No | ID de conversación existente para continuar |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "conversation_id": 1,
+    "message": "Para gaming te recomiendo los siguientes productos: ..."
+  }
+}
+```
+
+**Response (422 - Validation Error):**
+```json
+{
+  "message": "The message field is required.",
+  "errors": {
+    "message": ["The message field is required."]
+  }
+}
+```
+
+#### GET `/api/v1/chat/conversations`
+Listar conversaciones del usuario
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "title": "¿Qué productos me recomiendas...",
+      "created_at": "2025-12-06T12:00:00.000000Z",
+      "updated_at": "2025-12-06T12:05:00.000000Z"
+    }
+  ]
+}
+```
+
+#### GET `/api/v1/chat/conversations/{conversationId}`
+Obtener historial de una conversación
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "conversation": {
+      "id": 1,
+      "title": "¿Qué productos me recomiendas...",
+      "created_at": "2025-12-06T12:00:00.000000Z"
+    },
+    "messages": [
+      {
+        "id": 1,
+        "role": "user",
+        "content": "¿Qué productos me recomiendas para gaming?",
+        "created_at": "2025-12-06T12:00:00.000000Z"
+      },
+      {
+        "id": 2,
+        "role": "assistant",
+        "content": "Para gaming te recomiendo...",
+        "created_at": "2025-12-06T12:00:01.000000Z"
+      }
+    ]
+  }
+}
+```
+
+**Response (404):**
+```json
+{
+  "message": "No query results for model [App\\Models\\Conversation]."
+}
+```
+
 ### 🟠 Vendedor (Autenticado + Role)
 
 #### GET `/api/v1/vendor/products`
@@ -347,10 +460,30 @@ curl -X GET "http://localhost/api/v1/products/1"
 # Buscar productos
 curl -X GET "http://localhost/api/v1/products?search=laptop&category=1"
 
-# Chat con IA
+# Chat con IA (público)
 curl -X POST "http://localhost/api/v1/ai/chat" \
   -H "Content-Type: application/json" \
   -d '{"message": "¿Qué productos recomiendas?"}'
+
+# Chatbot con memoria (autenticado)
+curl -X POST "http://localhost/api/v1/chat" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hola, busco productos para gaming"}'
+
+# Continuar conversación existente
+curl -X POST "http://localhost/api/v1/chat" \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "¿Y cuál tiene mejor precio?", "conversation_id": 1}'
+
+# Listar mis conversaciones
+curl -X GET "http://localhost/api/v1/chat/conversations" \
+  -H "Authorization: Bearer {token}"
+
+# Ver historial de una conversación
+curl -X GET "http://localhost/api/v1/chat/conversations/1" \
+  -H "Authorization: Bearer {token}"
 
 # Agregar al carrito (autenticado)
 curl -X POST "http://localhost/api/v1/cart/add/1" \
@@ -392,8 +525,12 @@ curl -X POST "http://localhost/api/v1/orders" \
 
 ### Variables de entorno necesarias:
 ```env
-# OpenAI API (para funcionalidades de IA)
+# OpenAI API (para funcionalidades de IA públicas)
 OPENAI_API_KEY=your-api-key-here
+
+# OpenRouter API (para chatbot con memoria)
+OPENROUTER_API_KEY=your-openrouter-api-key
+AI_MODEL=openai/gpt-3.5-turbo
 
 # Database
 DB_CONNECTION=mysql
