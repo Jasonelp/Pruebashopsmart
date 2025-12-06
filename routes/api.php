@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\AIController;
+use App\Http\Controllers\Api\ChatbotController;
 
 /*
 |--------------------------------------------------------------------------
@@ -72,6 +73,13 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:100,1'])->group(funct
         Route::post('/products/{productId}', [ReviewController::class, 'store']);
         Route::put('/{id}', [ReviewController::class, 'update']);
         Route::delete('/{id}', [ReviewController::class, 'destroy']);
+    });
+
+    // Chatbot IA
+    Route::prefix('chat')->group(function () {
+        Route::post('/', [ChatbotController::class, 'chat']);
+        Route::get('/conversations', [ChatbotController::class, 'conversations']);
+        Route::get('/conversations/{conversationId}', [ChatbotController::class, 'history']);
     });
 });
 
